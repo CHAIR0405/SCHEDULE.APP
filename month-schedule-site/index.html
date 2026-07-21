@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Month — Schedule</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#A0522D">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Month">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;500&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --paper: #EDE6D6;
+    --paper-dim: #E4DCC9;
+    --ink: #2B2723;
+    --ink-soft: #6b6155;
+    --clay: #A0522D;
+    --clay-soft: #c98b64;
+    --line: rgba(43,39,35,0.16);
+    --weekend: #8a7a5f;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'EB Garamond', 'Noto Serif JP', serif;
+    min-height: 100%;
+  }
+
+  body {
+    background-image:
+      radial-gradient(ellipse at top left, rgba(160,82,45,0.05), transparent 60%),
+      radial-gradient(ellipse at bottom right, rgba(43,39,35,0.04), transparent 60%);
+  }
+
+  .page {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 56px 28px 100px;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 8px;
+  }
+
+  .month-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .nav-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 6px;
+    transition: color 0.15s ease;
+  }
+  .nav-btn:hover { color: var(--clay); }
+
+  h1 {
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 500;
+    font-size: 22px;
+    letter-spacing: 0.03em;
+    margin: 0;
+  }
+
+  .today-jump {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--clay);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid var(--clay-soft);
+    padding: 4px 10px;
+    border-radius: 2px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .today-jump:hover { background: var(--clay); color: var(--paper); }
+
+  .day-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 9px 2px;
+    border-bottom: 1px solid var(--line);
+    transition: border-color 0.2s ease, background 0.15s ease;
+  }
+
+  .day-row.week-end {
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .day-row.selected {
+    background: rgba(160,82,45,0.10);
+  }
+
+  .day-num {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .day-row:hover { border-color: var(--clay-soft); }
+
+  .day-row.today {
+    background: rgba(160,82,45,0.06);
+  }
+
+  .day-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 15px;
+    color: var(--ink);
+    min-width: 26px;
+    text-align: right;
+    flex-shrink: 0;
+    padding-top: 3px;
+  }
+
+  .day-row.today .day-num {
+    color: var(--clay);
+    font-weight: 700;
+  }
+
+  .weekday {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    min-width: 32px;
+    flex-shrink: 0;
+    padding-top: 4px;
+  }
+
+  .weekday.weekend { color: var(--weekend); }
+
+  .day-text {
+    flex: 1;
+    font-family: 'EB Garamond', serif;
+    font-size: 17px;
+    line-height: 1.4;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--ink);
+    padding: 2px 0;
+    resize: none;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    width: 100%;
+  }
+
+  .day-text::placeholder {
+    color: var(--line);
+    font-style: italic;
+  }
+
+  .copy-btn {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    background: var(--clay);
+    color: var(--paper);
+    border: none;
+    padding: 10px 18px;
+    cursor: pointer;
+    border-radius: 2px;
+    box-shadow: 0 3px 10px rgba(43,39,35,0.2);
+    transition: background 0.15s ease, opacity 0.2s ease, transform 0.2s ease;
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+  }
+
+  .copy-btn.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .copy-btn:hover { background: var(--ink); }
+
+  .select-hint {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    letter-spacing: 0.04em;
+    margin-bottom: 20px;
+  }
+
+  .status {
+    text-align: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    letter-spacing: 0.08em;
+    margin-top: 24px;
+    height: 14px;
+  }
+
+  ::selection { background: var(--clay-soft); color: var(--paper); }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="month-nav">
+        <span class="nav-btn" id="prevBtn">←</span>
+        <h1 id="monthLabel"></h1>
+        <span class="nav-btn" id="nextBtn">→</span>
+      </div>
+      <span class="today-jump" id="todayJump">today</span>
+    </header>
+    <div id="list"></div>
+    <div class="status" id="statusLine"></div>
+  </div>
+
+  <button class="copy-btn" id="copyBtn">copy 0 lines</button>
+
+<script>
+let viewYear, viewMonth; // month is 0-indexed
+let data = {}; // key: "YYYY-MM" -> { "1": "text", "2": "text", ... }
+let selectedDays = new Set();
+let lastClickedDay = null;
+const STORAGE_KEY = 'month-list-schedule';
+const WEEKDAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function monthKey(y, m) {
+  return y + '-' + String(m+1).padStart(2,'0');
+}
+
+function daysInMonth(y, m) {
+  return new Date(y, m+1, 0).getDate();
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('statusLine');
+  el.textContent = msg;
+  if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 1500);
+}
+
+async function loadData() {
+  try {
+    const result = await window.storage.get(STORAGE_KEY, false);
+    data = result && result.value ? JSON.parse(result.value) : {};
+  } catch (e) {
+    data = {};
+  }
+}
+
+async function saveData() {
+  try {
+    await window.storage.set(STORAGE_KEY, JSON.stringify(data), false);
+    setStatus('saved');
+  } catch (e) {
+    setStatus('save failed — try again');
+  }
+}
+
+function render() {
+  document.getElementById('monthLabel').textContent = MONTH_NAMES[viewMonth] + ' ' + viewYear;
+
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+
+  const key = monthKey(viewYear, viewMonth);
+  if (!data[key]) data[key] = {};
+
+  const total = daysInMonth(viewYear, viewMonth);
+  const now = new Date();
+  const isCurrentMonth = now.getFullYear() === viewYear && now.getMonth() === viewMonth;
+
+  for (let d = 1; d <= total; d++) {
+    const row = document.createElement('div');
+    const weekdayIdx = new Date(viewYear, viewMonth, d).getDay();
+    const isToday = isCurrentMonth && now.getDate() === d;
+    const isWeekend = weekdayIdx === 0 || weekdayIdx === 6;
+
+    row.className = 'day-row' + (isToday ? ' today' : '') + (weekdayIdx === 0 ? ' week-end' : '') + (selectedDays.has(d) ? ' selected' : '');
+    row.id = 'day-' + d;
+
+    const numEl = document.createElement('div');
+    numEl.className = 'day-num';
+    numEl.textContent = d;
+    numEl.addEventListener('click', (e) => {
+      if (e.shiftKey && lastClickedDay !== null) {
+        const start = Math.min(lastClickedDay, d);
+        const end = Math.max(lastClickedDay, d);
+        for (let i = start; i <= end; i++) selectedDays.add(i);
+      } else {
+        if (selectedDays.has(d)) selectedDays.delete(d);
+        else selectedDays.add(d);
+        lastClickedDay = d;
+      }
+      render();
+    });
+
+    const wdEl = document.createElement('div');
+    wdEl.className = 'weekday' + (isWeekend ? ' weekend' : '');
+    wdEl.textContent = WEEKDAYS[weekdayIdx];
+
+    const textEl = document.createElement('textarea');
+    textEl.className = 'day-text';
+    textEl.placeholder = '—';
+    textEl.rows = 1;
+    textEl.value = data[key][d] || '';
+
+    const autoResize = () => {
+      textEl.style.height = 'auto';
+      textEl.style.height = textEl.scrollHeight + 'px';
+    };
+
+    let saveTimeout;
+    textEl.addEventListener('input', () => {
+      data[key][d] = textEl.value;
+      autoResize();
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(saveData, 500);
+    });
+
+    // prevent Enter from adding literal newlines; just let it wrap naturally
+    textEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') e.preventDefault();
+    });
+
+    row.appendChild(numEl);
+    row.appendChild(wdEl);
+    row.appendChild(textEl);
+    list.appendChild(row);
+
+    autoResize();
+  }
+
+  updateCopyButton();
+}
+
+function updateCopyButton() {
+  const btn = document.getElementById('copyBtn');
+  const count = selectedDays.size;
+  btn.textContent = count > 0 ? `copy ${count} line${count > 1 ? 's' : ''}` : 'copy 0 lines';
+  btn.classList.toggle('visible', count > 0);
+}
+
+async function copySelected() {
+  const key = monthKey(viewYear, viewMonth);
+  const sorted = Array.from(selectedDays).sort((a,b) => a - b);
+  const lines = sorted
+    .map(d => (data[key] && data[key][d] ? data[key][d].trim() : ''))
+    .filter(text => text.length > 0); // skip empty days automatically
+
+  if (lines.length === 0) {
+    setStatus('nothing to copy — selected days are empty');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(lines.join('\n'));
+    setStatus(`copied ${lines.length} line${lines.length > 1 ? 's' : ''}`);
+  } catch (e) {
+    setStatus('copy failed — try again');
+  }
+
+  selectedDays.clear();
+  lastClickedDay = null;
+  render();
+}
+
+document.getElementById('copyBtn').addEventListener('click', copySelected);
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  viewMonth--;
+  if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  render();
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+  viewMonth++;
+  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  render();
+});
+
+document.getElementById('todayJump').addEventListener('click', () => {
+  const now = new Date();
+  viewYear = now.getFullYear();
+  viewMonth = now.getMonth();
+  render();
+  setTimeout(() => {
+    const el = document.getElementById('day-' + now.getDate());
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 50);
+});
+
+(async function init() {
+  const now = new Date();
+  viewYear = now.getFullYear();
+  viewMonth = now.getMonth();
+  await loadData();
+  render();
+})();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
