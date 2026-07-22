@@ -12,6 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="Month">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Noto+Serif+JP:wght@400;500&family=Space+Mono:wght@400;700&display=swap');
 
@@ -222,26 +225,186 @@
   }
 
   ::selection { background: var(--clay-soft); color: var(--paper); }
+
+  .login-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  .login-box {
+    width: 100%;
+    max-width: 320px;
+    padding: 0 28px;
+    text-align: center;
+  }
+
+  .login-box h1 {
+    margin-bottom: 28px;
+  }
+
+  .login-box input {
+    width: 100%;
+    font-family: 'EB Garamond', serif;
+    font-size: 16px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    outline: none;
+    color: var(--ink);
+  }
+
+  .login-box input:focus { border-color: var(--clay); }
+
+  .login-box button {
+    width: 100%;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    background: var(--clay);
+    color: var(--paper);
+    border: none;
+    padding: 11px 14px;
+    cursor: pointer;
+    border-radius: 2px;
+    margin-bottom: 14px;
+    transition: background 0.15s ease;
+  }
+
+  .login-box button:hover { background: var(--ink); }
+
+  .login-toggle {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .login-error {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--clay);
+    margin-bottom: 12px;
+    min-height: 14px;
+  }
+
+  .sign-out {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 6px;
+    display: inline-block;
+  }
+
+  #appRoot { display: none; }
 </style>
 </head>
 <body>
-  <div class="page">
-    <header>
-      <div class="month-nav">
-        <span class="nav-btn" id="prevBtn">←</span>
-        <h1 id="monthLabel"></h1>
-        <span class="nav-btn" id="nextBtn">→</span>
-      </div>
-      <span class="today-jump" id="todayJump">today</span>
-    </header>
-    <div id="list"></div>
-    <div class="status" id="statusLine"></div>
+  <div class="login-screen" id="loginScreen">
+    <div class="login-box">
+      <h1>行</h1>
+      <div class="login-error" id="loginError"></div>
+      <input type="email" id="emailInput" placeholder="email" autocomplete="email">
+      <input type="password" id="passwordInput" placeholder="password" autocomplete="current-password">
+      <button id="signInBtn">sign in</button>
+      <div class="login-toggle" id="toggleMode">first time? create an account</div>
+    </div>
   </div>
 
-  <button class="copy-btn" id="copyBtn">copy 0 lines</button>
+  <div id="appRoot">
+    <div class="page">
+      <header>
+        <div class="month-nav">
+          <span class="nav-btn" id="prevBtn">←</span>
+          <h1 id="monthLabel"></h1>
+          <span class="nav-btn" id="nextBtn">→</span>
+        </div>
+        <span class="today-jump" id="todayJump">today</span>
+      </header>
+      <div id="list"></div>
+      <div class="status" id="statusLine"></div>
+      <div style="text-align:center;"><span class="sign-out" id="signOutBtn">sign out</span></div>
+    </div>
+
+    <button class="copy-btn" id="copyBtn">copy 0 lines</button>
+  </div>
 
 <script>
-let viewYear, viewMonth; // month is 0-indexed
+// ============================================
+// PASTE YOUR FIREBASE CONFIG HERE (see setup steps)
+// ============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAUvOb_LB26_rLyUiYU_iL4urxEPGbQBmk",
+  authDomain: "shucheduleapp.firebaseapp.com",
+  projectId: "shucheduleapp",
+  storageBucket: "shucheduleapp.firebasestorage.app",
+  messagingSenderId: "1026548029497",
+  appId: "1:1026548029497:web:fae6caabc41f429c0055e8",
+  measurementId: "G-VMY5W5650N"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let currentUser = null;
+let isSignUpMode = false;
+let unsubscribeSnapshot = null;
+
+function showLoginError(msg) {
+  document.getElementById('loginError').textContent = msg;
+}
+
+document.getElementById('toggleMode').addEventListener('click', () => {
+  isSignUpMode = !isSignUpMode;
+  document.getElementById('signInBtn').textContent = isSignUpMode ? 'create account' : 'sign in';
+  document.getElementById('toggleMode').textContent = isSignUpMode ? 'already have an account? sign in' : 'first time? create an account';
+  showLoginError('');
+});
+
+document.getElementById('signInBtn').addEventListener('click', async () => {
+  const email = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  if (!email || !password) { showLoginError('enter both email and password'); return; }
+
+  try {
+    if (isSignUpMode) {
+      await auth.createUserWithEmailAndPassword(email, password);
+    } else {
+      await auth.signInWithEmailAndPassword(email, password);
+    }
+    showLoginError('');
+  } catch (e) {
+    showLoginError(e.message.replace('Firebase: ', ''));
+  }
+});
+
+document.getElementById('signOutBtn').addEventListener('click', () => {
+  auth.signOut();
+});
+
+auth.onAuthStateChanged((user) => {
+  currentUser = user;
+  if (user) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appRoot').style.display = 'block';
+    startListening();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+  }
+});
+
 let data = {}; // key: "YYYY-MM" -> { "1": "text", "2": "text", ... }
 let selectedDays = new Set();
 let lastClickedDay = null;
@@ -263,22 +426,30 @@ function setStatus(msg) {
   if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 1500);
 }
 
-async function loadData() {
-  try {
-    const result = await window.storage.get(STORAGE_KEY, false);
-    data = result && result.value ? JSON.parse(result.value) : {};
-  } catch (e) {
-    data = {};
-  }
+function startListening() {
+  const docRef = db.collection('schedules').doc(currentUser.uid);
+  unsubscribeSnapshot = docRef.onSnapshot((doc) => {
+    // Skip re-render for our own local writes still pending confirmation —
+    // otherwise typing gets interrupted by the DOM rebuilding mid-keystroke.
+    if (doc.metadata.hasPendingWrites) return;
+    data = doc.exists && doc.data().months ? doc.data().months : {};
+    render();
+  }, (err) => {
+    setStatus('sync error — check connection');
+  });
 }
 
-async function saveData() {
-  try {
-    await window.storage.set(STORAGE_KEY, JSON.stringify(data), false);
-    setStatus('saved');
-  } catch (e) {
-    setStatus('save failed — try again');
-  }
+let saveDebounce;
+function saveData() {
+  clearTimeout(saveDebounce);
+  saveDebounce = setTimeout(async () => {
+    try {
+      await db.collection('schedules').doc(currentUser.uid).set({ months: data }, { merge: false });
+      setStatus('synced');
+    } catch (e) {
+      setStatus('save failed — try again');
+    }
+  }, 500);
 }
 
 function render() {
@@ -338,8 +509,7 @@ function render() {
     textEl.addEventListener('input', () => {
       data[key][d] = textEl.value;
       autoResize();
-      clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(saveData, 500);
+      saveData();
     });
 
     // prevent Enter from adding literal newlines; just let it wrap naturally
@@ -414,13 +584,8 @@ document.getElementById('todayJump').addEventListener('click', () => {
   }, 50);
 });
 
-(async function init() {
-  const now = new Date();
-  viewYear = now.getFullYear();
-  viewMonth = now.getMonth();
-  await loadData();
-  render();
-})();
+viewYear = new Date().getFullYear();
+viewMonth = new Date().getMonth();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
